@@ -1,12 +1,18 @@
 package com.caiyf.tethys.message.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.caiyf.tethys.message.api.MessageClient;
 import com.caiyf.tethys.message.model.ZhenziConfig;
+import com.caiyf.tethys.message.model.ZhenziException;
+import com.caiyf.tethys.message.model.ZhenziResultModel;
 import com.zhenzi.sms.ZhenziSmsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+
+import java.util.Objects;
 
 /**
  * zhenzi short message platform
@@ -14,6 +20,7 @@ import org.springframework.util.StringUtils;
  * @author caiyf
  * @date 2020-01-04
  */
+@Component
 public class ZhenziClient implements MessageClient {
 
     @Autowired
@@ -30,17 +37,20 @@ public class ZhenziClient implements MessageClient {
     public void sendShortMessage(String phoneNum, String message) {
         if (checkParam(phoneNum, message)) {
             // todo: customized exception
-            throw new RuntimeException("参数缺失");
+            throw new ZhenziException("参数缺失");
         }
         ZhenziSmsClient client;
-        String result;
+        ZhenziResultModel result;
         try {
             client = new ZhenziSmsClient(config.getApiUrl(), config.getAppId(), config.getAppSecret());
-            result = client.send(phoneNum, message);
-
+            String resultString = client.send(phoneNum, message);
+            result = convertResult(resultString);
         } catch (Exception e) {
             log.error("{} send error, cause: {}", ERROR_LOG_MSG, e.getMessage());
-            throw new  RuntimeException("发送失败");
+            throw new  ZhenziException("发送异常", e);
+        }
+        if (Objects.isNull(result) || result.getCode() != 0) {
+            throw new ZhenziException("发送失败");
         }
     }
 
@@ -58,6 +68,19 @@ public class ZhenziClient implements MessageClient {
         }
         // todo: match phone pattern
         return true;
+    }
+
+    /**
+     * convert result
+     *
+     * @param resultString
+     * @return
+     */
+    private ZhenziResultModel convertResult(String resultString) {
+        if (StringUtils.isEmpty(resultString)) {
+            return ZhenziResultModel.returnEmptyResult();
+        }
+        return JSONObject.parseObject(resultString, ZhenziResultModel.class);
     }
 
 }
