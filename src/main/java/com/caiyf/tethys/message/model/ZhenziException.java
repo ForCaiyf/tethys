@@ -11,6 +11,7 @@ public class ZhenziException extends RuntimeException {
     public ZhenziException(String msg) {
         super(msg);
     }
+
     public ZhenziException(String msg, Throwable cause) {
         super(msg, cause);
     }
